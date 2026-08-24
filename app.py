@@ -434,31 +434,34 @@ with tab_indicadores:
                   "No aplica" if tasa_o is None else pct(tasa_o))
         st.caption(imp["origen_motivo"])
     with ic2:
-        st.markdown("**2️⃣ Impuesto en Uruguay (IRPF)**")
-        tasa_uy = imp["uy_tasa"]
-        st.metric("Sobre esa misma renta",
-                  "No definido" if tasa_uy is None else
-                  ("No tributa" if tasa_uy == 0 else pct(tasa_uy)))
+        st.markdown("**2️⃣ Impuesto en Uruguay (IRPF, con crédito tope 12%)**")
+        carga_total = imp["carga_total"]
+        st.metric("Carga fiscal total combinada",
+                  "No definida" if carga_total is None else pct(carga_total))
         st.caption(imp["uy_nota"])
 
-    if v_yield and tasa_o is not None:
+    if v_yield and carga_total is not None:
         bruto_pct = v_yield
-        despues_origen_pct = bruto_pct * (1 - tasa_o)
-        despues_uy_pct = despues_origen_pct * (1 - (tasa_uy or 0))
+        despues_origen_pct = bruto_pct * (1 - (tasa_o or 0))
+        neto_final_pct = bruto_pct * (1 - carga_total)
 
         st.markdown("**Ejemplo con tu dividendo actual:**")
         f1, f2, f3 = st.columns(3)
         f1.metric("Dividendo nominal (bruto)", pct(bruto_pct))
-        f2.metric("Después de EE.UU.", pct(despues_origen_pct),
+        f2.metric("Te llega a la cuenta (después de EE.UU.)",
+                  pct(despues_origen_pct),
                   pct(despues_origen_pct - bruto_pct, 2))
-        f3.metric("Neto final (después de Uruguay)", pct(despues_uy_pct),
-                  pct(despues_uy_pct - despues_origen_pct, 2))
+        f3.metric("Neto real (después de declarar en Uruguay)",
+                  pct(neto_final_pct),
+                  pct(neto_final_pct - despues_origen_pct, 2))
         st.caption(
             f"Sobre \\$10.000 invertidos, el dividendo nominal sería "
-            f"\\${bruto_pct*10000:,.0f}/año, pero lo que efectivamente "
-            f"queda neto ronda \\${despues_uy_pct*10000:,.0f}/año."
+            f"\\${bruto_pct*10000:,.0f}/año; EE.UU. ya te retiene y te llega "
+            f"\\${despues_origen_pct*10000:,.0f}, y lo que efectivamente te "
+            f"queda una vez declarado en Uruguay ronda "
+            f"\\${neto_final_pct*10000:,.0f}/año."
         )
-    elif tasa_o is not None:
+    elif carga_total is not None:
         st.caption(f"{nombre} no reparte dividendos actualmente, así que no "
                    "hay retención que calcular sobre ingresos periódicos — "
                    "solo aplicaría si vendés con ganancia (ver nota abajo).")
@@ -796,9 +799,8 @@ with tab_cartera:
                     t, ficha_pos["categoria"] if ficha_pos else None,
                     info_pos["tipo"])
                 bruto = div_unit * pos["cantidad"]
-                tasa_o = imp_pos["origen_tasa"] or 0
-                tasa_uy = imp_pos["uy_tasa"] or 0
-                neto = bruto * (1 - tasa_o) * (1 - tasa_uy)
+                carga = imp_pos["carga_total"]
+                neto = bruto * (1 - (carga or 0))
                 filas_div.append({"Ticker": t, "Bruto anual (US$)": bruto,
                                   "Neto estimado anual (US$)": neto})
 
@@ -820,9 +822,10 @@ with tab_cartera:
                                 "Neto estimado anual (US$)": st.column_config.NumberColumn(format="$%.0f"),
                             })
                 st.caption(
-                    "No incluye ganancia de capital (no tiene retención en "
-                    "origen) ni el 12% de IRPF sobre intereses de bonos si "
-                    "tenés bonos en cartera. " + impuestos.ADVERTENCIA
+                    "Ya incluye el efecto combinado de la retención de "
+                    "origen y el IRPF uruguayo (12% con crédito, tope 12%). "
+                    "No incluye ganancia de capital, que en general no "
+                    "tributa. " + impuestos.ADVERTENCIA
                 )
             else:
                 st.caption("Ninguna de tus posiciones reparte dividendos "

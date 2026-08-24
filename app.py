@@ -11,6 +11,7 @@ import yfinance as yf
 
 import cartera
 import catalogo
+import impuestos
 import indicadores as ind
 
 # ── Paleta (validada para accesibilidad, modo claro) ──────────────────────
@@ -413,6 +414,63 @@ with tab_indicadores:
             with st.expander(f"💡 {titulo}"):
                 st.markdown(ind.EXPLICACIONES[clave])
 
+    # ── impuestos: nominal vs. neto ──
+    st.divider()
+    st.subheader("💰 Ingreso nominal vs. neto (para un inversor en Uruguay)")
+    st.caption(
+        "El rendimiento de arriba es nominal. Acá se ve cuánto se descuenta "
+        "en el camino: primero la retención de EE.UU. en origen, después el "
+        "tratamiento en Uruguay."
+    )
+
+    imp = impuestos.resumen(ticker, ficha["categoria"] if ficha else None,
+                            info["tipo"])
+
+    ic1, ic2 = st.columns(2)
+    with ic1:
+        st.markdown("**1️⃣ Retención en origen (EE.UU.)**")
+        tasa_o = imp["origen_tasa"]
+        st.metric("Sobre los dividendos/intereses",
+                  "No aplica" if tasa_o is None else pct(tasa_o))
+        st.caption(imp["origen_motivo"])
+    with ic2:
+        st.markdown("**2️⃣ Impuesto en Uruguay (IRPF)**")
+        tasa_uy = imp["uy_tasa"]
+        st.metric("Sobre esa misma renta",
+                  "No definido" if tasa_uy is None else
+                  ("No tributa" if tasa_uy == 0 else pct(tasa_uy)))
+        st.caption(imp["uy_nota"])
+
+    if v_yield and tasa_o is not None:
+        bruto_pct = v_yield
+        despues_origen_pct = bruto_pct * (1 - tasa_o)
+        despues_uy_pct = despues_origen_pct * (1 - (tasa_uy or 0))
+
+        st.markdown("**Ejemplo con tu dividendo actual:**")
+        f1, f2, f3 = st.columns(3)
+        f1.metric("Dividendo nominal (bruto)", pct(bruto_pct))
+        f2.metric("Después de EE.UU.", pct(despues_origen_pct),
+                  pct(despues_origen_pct - bruto_pct, 2))
+        f3.metric("Neto final (después de Uruguay)", pct(despues_uy_pct),
+                  pct(despues_uy_pct - despues_origen_pct, 2))
+        st.caption(
+            f"Sobre \\$10.000 invertidos, el dividendo nominal sería "
+            f"\\${bruto_pct*10000:,.0f}/año, pero lo que efectivamente "
+            f"queda neto ronda \\${despues_uy_pct*10000:,.0f}/año."
+        )
+    elif tasa_o is not None:
+        st.caption(f"{nombre} no reparte dividendos actualmente, así que no "
+                   "hay retención que calcular sobre ingresos periódicos — "
+                   "solo aplicaría si vendés con ganancia (ver nota abajo).")
+
+    st.info(
+        "📌 **Importante:** esta retención es solo sobre **dividendos e "
+        "intereses**. La **ganancia de capital** (vender más caro de lo que "
+        "compraste) que obtiene un inversor extranjero **no** sufre "
+        "retención en origen en EE.UU., sin importar la categoría del activo."
+    )
+    st.warning(impuestos.ADVERTENCIA)
+
 # ═══════════════════ Tab 4: Comparar con el S&P 500 ═══════════════════
 with tab_comparar:
     st.caption(
@@ -722,6 +780,55 @@ with tab_cartera:
             st.caption("Esto es una lectura automática con reglas generales de "
                        "educación financiera, no un análisis personalizado.")
 
+            # ── impuestos de la cartera: dividendos nominales vs. netos ──
+            st.subheader("💰 Dividendos de tu cartera: nominal vs. neto estimado")
+            filas_div = []
+            for _, pos in posiciones.iterrows():
+                t = pos["ticker"]
+                if t not in historias:
+                    continue
+                div_unit = dividendos_12m(t)
+                if div_unit <= 0:
+                    continue
+                ficha_pos = catalogo.ACTIVOS.get(t)
+                info_pos = bajar_info(t)
+                imp_pos = impuestos.resumen(
+                    t, ficha_pos["categoria"] if ficha_pos else None,
+                    info_pos["tipo"])
+                bruto = div_unit * pos["cantidad"]
+                tasa_o = imp_pos["origen_tasa"] or 0
+                tasa_uy = imp_pos["uy_tasa"] or 0
+                neto = bruto * (1 - tasa_o) * (1 - tasa_uy)
+                filas_div.append({"Ticker": t, "Bruto anual (US$)": bruto,
+                                  "Neto estimado anual (US$)": neto})
+
+            if filas_div:
+                tabla_div = pd.DataFrame(filas_div)
+                total_bruto = tabla_div["Bruto anual (US$)"].sum()
+                total_neto = tabla_div["Neto estimado anual (US$)"].sum()
+                d1, d2, d3 = st.columns(3)
+                d1.metric("Dividendos nominales/año", f"US$ {total_bruto:,.0f}")
+                d2.metric("Neto estimado/año", f"US$ {total_neto:,.0f}")
+                d3.metric("Se va en el camino",
+                          f"US$ {total_bruto - total_neto:,.0f}",
+                          pct(-(total_bruto - total_neto) / total_bruto
+                              if total_bruto else 0, 0))
+                st.dataframe(tabla_div, use_container_width=True,
+                            hide_index=True,
+                            column_config={
+                                "Bruto anual (US$)": st.column_config.NumberColumn(format="$%.0f"),
+                                "Neto estimado anual (US$)": st.column_config.NumberColumn(format="$%.0f"),
+                            })
+                st.caption(
+                    "No incluye ganancia de capital (no tiene retención en "
+                    "origen) ni el 12% de IRPF sobre intereses de bonos si "
+                    "tenés bonos en cartera. " + impuestos.ADVERTENCIA
+                )
+            else:
+                st.caption("Ninguna de tus posiciones reparte dividendos "
+                          "actualmente, así que no hay retención que estimar "
+                          "sobre ingresos periódicos.")
+
 # ═══════════════════ Tab 6: Aprender ═══════════════════
 with tab_aprender:
     st.subheader("Los 7 principios que más importan (antes que cualquier indicador)")
@@ -744,7 +851,8 @@ with tab_aprender:
          "Un 1% anual de comisiones parece poco, pero a 30 años se come ~25% de "
          "tu patrimonio final. Por eso los ETFs de bajo costo (0,03-0,20%) son la "
          "base. Y desde Uruguay, los UCITS de acumulación evitan la retención "
-         "del 30% sobre dividendos de EE.UU."),
+         "del 30% sobre dividendos de EE.UU. (mirá la sección 💰 en la "
+         "pestaña *Indicadores* de cada activo para el detalle nominal vs. neto)."),
         ("5. Tu peor enemigo sos vos en pánico",
          "El mercado cae 30-50% una o dos veces por década. Es normal y siempre "
          "pasó. El error que arruina inversores no es la caída: es **vender "

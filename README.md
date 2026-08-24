@@ -6,6 +6,14 @@ su evolución histórica en gráficas y los indicadores clave explicados desde c
 
 > ⚠️ Herramienta de estudio. No es asesoramiento financiero.
 
+## Apps de este repositorio
+
+- **Esta app** (raíz del repo) — seguimiento de cartera personal.
+- **[`app_informes/`](app_informes/)** — escribís el nombre de un activo y
+  genera un informe educativo detallado, descargable en Word, con datos de
+  Yahoo Finance, Wikipedia y SEC EDGAR. Se publica como una segunda app de
+  Streamlit Cloud apuntando a `app_informes/app.py`.
+
 ## Cómo ejecutarla localmente
 
 ```

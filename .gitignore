@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+cartera.json
+.streamlit/secrets.toml

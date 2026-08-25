@@ -470,7 +470,12 @@ with tab_indicadores:
         "📌 **Importante:** esta retención es solo sobre **dividendos e "
         "intereses**. La **ganancia de capital** (vender más caro de lo que "
         "compraste) que obtiene un inversor extranjero **no** sufre "
-        "retención en origen en EE.UU., sin importar la categoría del activo."
+        "retención en origen en EE.UU., sin importar la categoría del activo. "
+        "Eso es solo el lado de EE.UU.: **del lado de Uruguay, el "
+        "tratamiento de la ganancia de capital está en revisión** — hay un "
+        "cambio normativo reciente que podría hacerla tributar, y todavía "
+        "no confirmamos la tasa exacta. No asumas que está exenta: "
+        "confirmá con un contador antes de decidir en base a esto."
     )
     st.warning(impuestos.ADVERTENCIA)
 
@@ -823,9 +828,11 @@ with tab_cartera:
                             })
                 st.caption(
                     "Ya incluye el efecto combinado de la retención de "
-                    "origen y el IRPF uruguayo (12% con crédito, tope 12%). "
-                    "No incluye ganancia de capital, que en general no "
-                    "tributa. " + impuestos.ADVERTENCIA
+                    "origen y el IRPF uruguayo (12% con crédito, tope 12%) "
+                    "sobre dividendos/intereses. No incluye la ganancia de "
+                    "capital al vender — su tratamiento en Uruguay está en "
+                    "revisión por un cambio normativo reciente, no asumas "
+                    "que está exenta. " + impuestos.ADVERTENCIA
                 )
             else:
                 st.caption("Ninguna de tus posiciones reparte dividendos "

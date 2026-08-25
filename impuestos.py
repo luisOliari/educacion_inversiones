@@ -17,8 +17,11 @@ consecuencia, cuando la retención de origen ya es del 12% o más (por ejemplo
 el 30% de EE.UU. sobre dividendos), Uruguay no cobra nada adicional — pero
 tampoco devuelve el excedente. La carga total termina siendo la MAYOR entre
 la retención de origen y el 12% uruguayo, nunca la suma de ambas.
-Esto NO aplica a la ganancia de capital (vender más caro de lo que
-compraste): esa es renta de fuente extranjera y, en general, no tributa.
+⚠️ PENDIENTE DE CONFIRMAR: la ganancia de capital (vender más caro de lo
+que compraste) venía considerándose renta de fuente extranjera, en general
+no gravada. Hubo un cambio normativo que la haría tributar ahora — falta
+confirmar la tasa exacta, desde cuándo rige y si hay crédito fiscal. Hasta
+confirmarlo, NO se calcula un número: se avisa que puede haber impuesto.
 """
 
 TOPE_CREDITO_URUGUAY = 0.12  # tasa de IRPF Categoría I sobre rendimientos de
@@ -135,7 +138,10 @@ def resumen(ticker: str, categoria_catalogo: str | None,
                 "declarar cada año. La retención del 15% ya ocurrió *dentro* "
                 "del fondo y quedó reflejada en su precio; cuando vendas tus "
                 "unidades con ganancia, eso es ganancia de capital de fuente "
-                "extranjera y, en general, no tributa en Uruguay."
+                "extranjera. ⚠️ Este punto está cambiando: hasta hace poco "
+                "en general no tributaba, pero hay una modificación "
+                "normativa reciente que la haría gravar — confirmá la tasa "
+                "vigente con un contador antes de asumir que no paga nada."
             ),
         }
 

@@ -25,6 +25,35 @@ st.set_page_config(page_title="Informe de Activos", page_icon="📄", layout="wi
 AZUL = "#2a78d6"
 NARANJA = "#eb6834"
 
+st.markdown("""
+<style>
+div[data-testid="stDownloadButton"] button {
+    background: linear-gradient(135deg, #2a78d6 0%, #1c5cab 100%);
+    color: #ffffff;
+    border: none;
+    border-radius: 10px;
+    padding: 0.9rem 1.4rem;
+    font-size: 1.05rem;
+    font-weight: 600;
+    box-shadow: 0 3px 10px rgba(42, 120, 214, 0.35);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+div[data-testid="stDownloadButton"] button:hover {
+    background: linear-gradient(135deg, #3987e5 0%, #2a78d6 100%);
+    box-shadow: 0 5px 14px rgba(42, 120, 214, 0.45);
+    transform: translateY(-1px);
+    color: #ffffff;
+}
+div[data-testid="stDownloadButton"] button:active {
+    transform: translateY(0);
+}
+div[data-testid="stDownloadButton"] button p {
+    font-size: 1.05rem;
+    font-weight: 600;
+}
+</style>
+""", unsafe_allow_html=True)
+
 
 def pct(x, dec=1):
     return "—" if x is None or pd.isna(x) else f"{x*100:.{dec}f}%"
@@ -112,20 +141,22 @@ if "error" in r:
     st.stop()
 
 # ═══════════════════ Encabezado + descarga ═══════════════════
-c1, c2 = st.columns([4, 1])
+c1, c2 = st.columns([3, 1.3])
 with c1:
     st.title(f"{r['nombre']} ({r['ticker']})")
     st.caption(f"{r['categoria'] or 'Sin categoría curada'} · "
               f"Precio actual: {r['precio_actual']:,.2f} {r['moneda']} · "
               f"Generado el {r['fecha_informe'].strftime('%d/%m/%Y')}")
 with c2:
+    st.write("")  # centra verticalmente el botón respecto al título
     docx_buf = exportar_docx.generar_docx(r)
     st.download_button(
-        "⬇️ Descargar en Word", data=docx_buf,
+        "📄⬇️  Descargar informe en Word", data=docx_buf,
         file_name=f"informe_{r['ticker']}.docx",
         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         use_container_width=True,
     )
+    st.caption("Archivo .docx listo para abrir en Word.")
 
 st.warning(
     "⚠️ Este informe es una herramienta educativa. No constituye "
@@ -208,6 +239,7 @@ with st.expander("📚 ¿Qué significan estos indicadores?"):
 # ═══════════════════ 6. Impuestos ═══════════════════
 st.header("6. Impuestos para un inversor uruguayo")
 imp = r["impuesto"]
+st.markdown("**Sobre dividendos/intereses:**")
 t1, t2 = st.columns(2)
 with t1:
     st.metric("Retención en origen (EE.UU.)", pct(imp["origen_tasa"]) if imp["origen_tasa"] is not None else "No aplica")
@@ -215,6 +247,11 @@ with t1:
 with t2:
     st.metric("Carga fiscal total combinada", pct(imp["carga_total"]) if imp["carga_total"] is not None else "No definida")
     st.caption(imp["uy_nota"])
+
+st.markdown("**Sobre la ganancia de capital al vender:**")
+st.metric("IRPF sobre la ganancia de capital",
+          "No definido" if imp["gc_tasa"] is None else pct(imp["gc_tasa"]))
+st.caption(imp["gc_nota"])
 
 # ═══════════════════ 7-8. Riesgos y perfil ═══════════════════
 if edu["riesgos"] or edu["perfil"]:

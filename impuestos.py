@@ -7,25 +7,28 @@ nominal". No es asesoramiento tributario ni reemplaza a un contador: la
 normativa tiene excepciones, cambia con el tiempo y depende de tu situación
 personal (montos, tipo de cuenta, si declarás bienes en el exterior, etc.).
 
-Cómo funciona el IRPF uruguayo sobre esto (resumen):
-Los rendimientos de capital mobiliario (dividendos, intereses) que un
-residente uruguayo obtiene en el exterior tributan IRPF Categoría I al 12%.
-Uruguay permite acreditar el impuesto ya pagado en el exterior (la retención
-en origen), pero con un TOPE del 12%: no se puede descontar más que la
-propia tasa uruguaya, aunque en el exterior se haya pagado más. Como
-consecuencia, cuando la retención de origen ya es del 12% o más (por ejemplo
-el 30% de EE.UU. sobre dividendos), Uruguay no cobra nada adicional — pero
-tampoco devuelve el excedente. La carga total termina siendo la MAYOR entre
-la retención de origen y el 12% uruguayo, nunca la suma de ambas.
-⚠️ PENDIENTE DE CONFIRMAR: la ganancia de capital (vender más caro de lo
-que compraste) venía considerándose renta de fuente extranjera, en general
-no gravada. Hubo un cambio normativo que la haría tributar ahora — falta
-confirmar la tasa exacta, desde cuándo rige y si hay crédito fiscal. Hasta
-confirmarlo, NO se calcula un número: se avisa que puede haber impuesto.
+Cómo funciona el IRPF uruguayo sobre esto (resumen, vigente):
+Tanto los RENDIMIENTOS de capital mobiliario (dividendos, intereses) como
+el INCREMENTO PATRIMONIAL (ganancia de capital al vender, ya sea de capital
+mobiliario —acciones, ETFs, bonos— o inmobiliario) que un residente
+uruguayo obtiene en el exterior tributan IRPF Categoría I al 12%. Uruguay
+permite acreditar el impuesto ya pagado en el exterior sobre esa misma
+renta, pero con un TOPE del 12%: no se puede descontar más que la propia
+tasa uruguaya, aunque en el exterior se haya pagado más.
+- Sobre DIVIDENDOS/INTERESES: como EE.UU. suele retener 30% (acciones
+  directas) o 15% (UCITS) — ambos por encima del 12% — el crédito cubre
+  todo el IRPF uruguayo y no se paga nada adicional (pero tampoco se
+  devuelve el excedente ya pagado afuera).
+- Sobre la GANANCIA DE CAPITAL al vender: EE.UU. (y los mercados donde se
+  domicilian los ETFs, como Irlanda) NO retienen impuesto sobre la
+  ganancia de capital de un inversor extranjero. Como no hay nada pagado
+  en origen para acreditar, el crédito es $0 y en Uruguay se paga el 12%
+  completo sobre la ganancia.
 """
 
-TOPE_CREDITO_URUGUAY = 0.12  # tasa de IRPF Categoría I sobre rendimientos de
-                              # capital mobiliario, y tope del crédito fiscal
+TASA_IRPF_CAT_I = 0.12  # IRPF Categoría I: rendimientos de capital
+                        # mobiliario E incremento patrimonial (ganancia de
+                        # capital), con crédito fiscal tope 12%.
 
 
 def clasificar(ticker: str, categoria_catalogo: str | None,
@@ -48,6 +51,8 @@ def clasificar(ticker: str, categoria_catalogo: str | None,
 
 
 # Retención en origen (Estados Unidos) — dato objetivo, bien documentado.
+# Aplica solo a dividendos/intereses: la ganancia de capital NO tiene
+# retención en origen para un inversor extranjero, en ninguna categoría.
 RETENCION_ORIGEN = {
     "acciones_eeuu": {
         "tasa": 0.30,
@@ -90,16 +95,47 @@ RETENCION_ORIGEN = {
 }
 
 
+def _ganancia_capital(clase: str) -> dict:
+    """Impuesto uruguayo sobre el incremento patrimonial (ganancia de
+    capital) al vender. EE.UU./Irlanda no retienen nada sobre esto, así que
+    no hay crédito fiscal que aplicar: se paga el 12% completo."""
+    if clase == "cripto":
+        return {
+            "gc_aplica": None,
+            "gc_tasa": None,
+            "gc_nota": (
+                "El encuadre de las criptomonedas como 'capital mobiliario' "
+                "a estos efectos no es tan claro como el de acciones o "
+                "bonos: es un área gris de la normativa. Consultá "
+                "específicamente este punto con un contador."
+            ),
+        }
+    return {
+        "gc_aplica": True,
+        "gc_tasa": TASA_IRPF_CAT_I,
+        "gc_nota": (
+            "La ganancia de capital al vender (incremento patrimonial) "
+            "también tributa IRPF Categoría I al **12%** en Uruguay. A "
+            "diferencia de los dividendos, EE.UU. (o Irlanda, para los "
+            "UCITS) **no retiene nada en origen** sobre la ganancia de "
+            "capital de un inversor extranjero — así que no hay impuesto "
+            "pagado afuera para acreditar, y el 12% se paga **completo**, "
+            "sin descuento."
+        ),
+    }
+
+
 def resumen(ticker: str, categoria_catalogo: str | None,
            quote_type: str | None) -> dict:
-    """Calcula la carga fiscal combinada (origen + Uruguay) para un activo.
+    """Calcula la carga fiscal para un activo: por un lado, dividendos e
+    intereses (origen + Uruguay con crédito tope 12%); por otro, la
+    ganancia de capital al vender (Uruguay 12%, sin crédito posible).
 
-    Devuelve, entre otras cosas:
-    - aplica_irpf_12: si esta renta cae dentro del IRPF 12% de rendimientos
-      de capital mobiliario (dividendos/intereses efectivamente distribuidos).
-    - uy_adicional: lo que Uruguay cobra DE MÁS sobre la retención de origen
-      (0 si la retención de origen ya iguala o supera el 12%).
-    - carga_total: la carga combinada real = max(retención origen, 12%).
+    Claves relevantes del resultado:
+    - carga_total: carga combinada sobre DIVIDENDOS/INTERESES = máximo
+      entre la retención de origen y el 12% uruguayo (nunca la suma).
+    - gc_tasa: tasa uruguaya sobre la GANANCIA DE CAPITAL al vender (12%,
+      sin crédito porque no hay retención en origen que acreditar).
     """
     clase = clasificar(ticker, categoria_catalogo, quote_type)
     origen = RETENCION_ORIGEN[clase]
@@ -109,6 +145,7 @@ def resumen(ticker: str, categoria_catalogo: str | None,
         "clase": clase,
         "origen_tasa": tasa_origen,
         "origen_motivo": origen["motivo"],
+        **_ganancia_capital(clase),
     }
 
     if clase == "cripto":
@@ -119,10 +156,8 @@ def resumen(ticker: str, categoria_catalogo: str | None,
             "carga_total": None,
             "uy_nota": (
                 "No hay dividendos ni intereses, así que no aplica el IRPF "
-                "del 12% sobre rendimientos de capital mobiliario. La "
-                "ganancia (o pérdida) al vender es un área todavía poco "
-                "desarrollada en la normativa uruguaya: consultá "
-                "específicamente este punto con un contador."
+                "del 12% sobre rendimientos de capital mobiliario. Ver la "
+                "nota sobre ganancia de capital más abajo."
             ),
         }
 
@@ -136,26 +171,24 @@ def resumen(ticker: str, categoria_catalogo: str | None,
                 "Al ser un fondo de acumulación, no recibís un dividendo en "
                 "efectivo: no hay 'rendimiento de capital mobiliario' que "
                 "declarar cada año. La retención del 15% ya ocurrió *dentro* "
-                "del fondo y quedó reflejada en su precio; cuando vendas tus "
-                "unidades con ganancia, eso es ganancia de capital de fuente "
-                "extranjera. ⚠️ Este punto está cambiando: hasta hace poco "
-                "en general no tributaba, pero hay una modificación "
-                "normativa reciente que la haría gravar — confirmá la tasa "
-                "vigente con un contador antes de asumir que no paga nada."
+                "del fondo y quedó reflejada en su precio. Ese valor "
+                "reinvertido se realiza recién cuando vendés tus unidades — "
+                "momento en el que pasa a tributar como ganancia de capital "
+                "(ver nota abajo), no como dividendo."
             ),
         }
 
     # acciones_eeuu (si reparte dividendo) y bonos (interés): esto SÍ es
     # "rendimiento de capital mobiliario" — tributa 12% en Uruguay, con
     # crédito por el impuesto ya pagado en el exterior, tope 12%.
-    uy_adicional = max(TOPE_CREDITO_URUGUAY - (tasa_origen or 0), 0)
-    carga_total = max(tasa_origen or 0, TOPE_CREDITO_URUGUAY)
-    if (tasa_origen or 0) >= TOPE_CREDITO_URUGUAY:
+    uy_adicional = max(TASA_IRPF_CAT_I - (tasa_origen or 0), 0)
+    carga_total = max(tasa_origen or 0, TASA_IRPF_CAT_I)
+    if (tasa_origen or 0) >= TASA_IRPF_CAT_I:
         nota_extra = (
             f"Como EE.UU. ya te retuvo {tasa_origen*100:.0f}% (más que el "
             "12% uruguayo), el crédito cubre el 100% del IRPF: Uruguay no "
             "te cobra nada adicional. Pero **tampoco te devuelve** el "
-            f"{(tasa_origen - TOPE_CREDITO_URUGUAY)*100:.0f}% de diferencia: "
+            f"{(tasa_origen - TASA_IRPF_CAT_I)*100:.0f}% de diferencia: "
             f"tu carga total termina siendo el {tasa_origen*100:.0f}% que "
             "ya pagaste en origen, no un 12% aparte."
         )

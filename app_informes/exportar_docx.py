@@ -191,12 +191,17 @@ def generar_docx(r: dict) -> io.BytesIO:
     # ── impuestos ──
     _titulo(doc, "6. Impuestos para un inversor uruguayo")
     imp = r["impuesto"]
-    _parrafo(doc, f"Retención en origen (EE.UU.) sobre dividendos/intereses: "
+    _parrafo(doc, "Sobre dividendos/intereses:", negrita=True)
+    _parrafo(doc, f"Retención en origen (EE.UU.): "
                  f"{_fmt_pct(imp['origen_tasa'])}", negrita=True)
     _parrafo(doc, imp["origen_motivo"])
     _parrafo(doc, f"Carga fiscal total combinada (con IRPF uruguayo): "
                  f"{_fmt_pct(imp['carga_total'])}", negrita=True)
     _parrafo(doc, imp["uy_nota"])
+    _parrafo(doc, "Sobre la ganancia de capital al vender:", negrita=True)
+    _parrafo(doc, f"IRPF sobre la ganancia de capital: "
+                 f"{_fmt_pct(imp['gc_tasa'])}", negrita=True)
+    _parrafo(doc, imp["gc_nota"])
 
     # ── riesgos y perfil ──
     if edu["riesgos"]:

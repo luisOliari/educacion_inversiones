@@ -466,17 +466,22 @@ with tab_indicadores:
                    "hay retención que calcular sobre ingresos periódicos — "
                    "solo aplicaría si vendés con ganancia (ver nota abajo).")
 
-    st.info(
-        "📌 **Importante:** esta retención es solo sobre **dividendos e "
-        "intereses**. La **ganancia de capital** (vender más caro de lo que "
-        "compraste) que obtiene un inversor extranjero **no** sufre "
-        "retención en origen en EE.UU., sin importar la categoría del activo. "
-        "Eso es solo el lado de EE.UU.: **del lado de Uruguay, el "
-        "tratamiento de la ganancia de capital está en revisión** — hay un "
-        "cambio normativo reciente que podría hacerla tributar, y todavía "
-        "no confirmamos la tasa exacta. No asumas que está exenta: "
-        "confirmá con un contador antes de decidir en base a esto."
-    )
+    st.markdown("**3️⃣ Ganancia de capital al vender (distinto de los dividendos)**")
+    gc1, gc2 = st.columns([1, 2])
+    with gc1:
+        st.metric("IRPF sobre la ganancia de capital",
+                  "No definido" if imp["gc_tasa"] is None else pct(imp["gc_tasa"]))
+    with gc2:
+        st.caption(imp["gc_nota"])
+    if imp["gc_tasa"]:
+        st.caption(
+            f"Ejemplo: si comprás a \\$1.000 y vendés a \\$1.500 (ganancia de "
+            f"\\$500), en Uruguay pagarías \\${500*imp['gc_tasa']:,.0f} de "
+            f"IRPF sobre esa ganancia (el {pct(imp['gc_tasa'])} completo, sin "
+            "descuento por lo retenido en origen, porque en origen no te "
+            "retuvieron nada sobre esta ganancia)."
+        )
+
     st.warning(impuestos.ADVERTENCIA)
 
 # ═══════════════════ Tab 4: Comparar con el S&P 500 ═══════════════════
@@ -827,17 +832,66 @@ with tab_cartera:
                                 "Neto estimado anual (US$)": st.column_config.NumberColumn(format="$%.0f"),
                             })
                 st.caption(
-                    "Ya incluye el efecto combinado de la retención de "
-                    "origen y el IRPF uruguayo (12% con crédito, tope 12%) "
-                    "sobre dividendos/intereses. No incluye la ganancia de "
-                    "capital al vender — su tratamiento en Uruguay está en "
-                    "revisión por un cambio normativo reciente, no asumas "
-                    "que está exenta. " + impuestos.ADVERTENCIA
+                    "Efecto combinado de la retención de origen y el IRPF "
+                    "uruguayo (12% con crédito, tope 12%) sobre "
+                    "dividendos/intereses únicamente. La ganancia de "
+                    "capital al vender se calcula aparte, abajo."
                 )
             else:
                 st.caption("Ninguna de tus posiciones reparte dividendos "
                           "actualmente, así que no hay retención que estimar "
                           "sobre ingresos periódicos.")
+
+            # ── impuesto sobre la ganancia de capital no realizada ──
+            st.subheader("💰 Si vendieras hoy: impuesto sobre la ganancia de capital")
+            con_costo = tabla.dropna(subset=["Costo"]).copy()
+            con_ganancia = con_costo[con_costo["Ganancia"] > 0]
+            if con_ganancia.empty:
+                st.caption(
+                    "Ninguna posición con precio de compra cargado tiene "
+                    "ganancia hoy, así que no habría IRPF que pagar si "
+                    "vendieras en este momento."
+                )
+            else:
+                filas_gc = []
+                for _, fila in con_ganancia.iterrows():
+                    t = fila["Ticker"]
+                    ficha_pos = catalogo.ACTIVOS.get(t)
+                    info_pos = bajar_info(t)
+                    imp_pos = impuestos.resumen(
+                        t, ficha_pos["categoria"] if ficha_pos else None,
+                        info_pos["tipo"])
+                    tasa_gc = imp_pos["gc_tasa"]
+                    if not tasa_gc:
+                        continue
+                    filas_gc.append({
+                        "Ticker": t, "Ganancia no realizada (US$)": fila["Ganancia"],
+                        "IRPF si vendés (12%, US$)": fila["Ganancia"] * tasa_gc,
+                    })
+                if filas_gc:
+                    tabla_gc = pd.DataFrame(filas_gc)
+                    total_gan = tabla_gc["Ganancia no realizada (US$)"].sum()
+                    total_irpf = tabla_gc["IRPF si vendés (12%, US$)"].sum()
+                    g1, g2 = st.columns(2)
+                    g1.metric("Ganancia no realizada (posiciones en verde)",
+                              f"US$ {total_gan:,.0f}")
+                    g2.metric("IRPF si vendieras todo hoy (12%)",
+                              f"US$ {total_irpf:,.0f}")
+                    st.dataframe(tabla_gc, use_container_width=True,
+                                hide_index=True,
+                                column_config={
+                                    "Ganancia no realizada (US$)": st.column_config.NumberColumn(format="$%.0f"),
+                                    "IRPF si vendés (12%, US$)": st.column_config.NumberColumn(format="$%.0f"),
+                                })
+                st.caption(
+                    "Esto **no es un impuesto que debas hoy** — recién se "
+                    "genera si vendés y realizás la ganancia. Se paga "
+                    "completo (12%, sin descuento) porque en origen no hay "
+                    "retención sobre la ganancia de capital que acreditar. "
+                    "No incluye pérdidas de otras posiciones ni posibles "
+                    "compensaciones entre ganancias y pérdidas del año. "
+                    + impuestos.ADVERTENCIA
+                )
 
 # ═══════════════════ Tab 6: Aprender ═══════════════════
 with tab_aprender:

@@ -242,16 +242,19 @@ imp = r["impuesto"]
 st.markdown("**Sobre dividendos/intereses:**")
 t1, t2 = st.columns(2)
 with t1:
-    st.metric("Retención en origen (EE.UU.)", pct(imp["origen_tasa"]) if imp["origen_tasa"] is not None else "No aplica")
-    st.caption(imp["origen_motivo"])
+    origen_tasa = imp.get("origen_tasa")
+    st.metric("Retención en origen (EE.UU.)", pct(origen_tasa) if origen_tasa is not None else "No aplica")
+    st.caption(imp.get("origen_motivo", "—"))
 with t2:
-    st.metric("Carga fiscal total combinada", pct(imp["carga_total"]) if imp["carga_total"] is not None else "No definida")
-    st.caption(imp["uy_nota"])
+    carga_total = imp.get("carga_total")
+    st.metric("Carga fiscal total combinada", pct(carga_total) if carga_total is not None else "No definida")
+    st.caption(imp.get("uy_nota", "—"))
 
+gc_tasa = imp.get("gc_tasa")
 st.markdown("**Sobre la ganancia de capital al vender:**")
 st.metric("IRPF sobre la ganancia de capital",
-          "No definido" if imp["gc_tasa"] is None else pct(imp["gc_tasa"]))
-st.caption(imp["gc_nota"])
+          "No definido" if gc_tasa is None else pct(gc_tasa))
+st.caption(imp.get("gc_nota", "—"))
 
 # ═══════════════════ 7-8. Riesgos y perfil ═══════════════════
 if edu["riesgos"] or edu["perfil"]:

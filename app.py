@@ -429,16 +429,16 @@ with tab_indicadores:
     ic1, ic2 = st.columns(2)
     with ic1:
         st.markdown("**1️⃣ Retención en origen (EE.UU.)**")
-        tasa_o = imp["origen_tasa"]
+        tasa_o = imp.get("origen_tasa")
         st.metric("Sobre los dividendos/intereses",
                   "No aplica" if tasa_o is None else pct(tasa_o))
-        st.caption(imp["origen_motivo"])
+        st.caption(imp.get("origen_motivo", "—"))
     with ic2:
         st.markdown("**2️⃣ Impuesto en Uruguay (IRPF, con crédito tope 12%)**")
-        carga_total = imp["carga_total"]
+        carga_total = imp.get("carga_total")
         st.metric("Carga fiscal total combinada",
                   "No definida" if carga_total is None else pct(carga_total))
-        st.caption(imp["uy_nota"])
+        st.caption(imp.get("uy_nota", "—"))
 
     if v_yield and carga_total is not None:
         bruto_pct = v_yield
@@ -466,18 +466,19 @@ with tab_indicadores:
                    "hay retención que calcular sobre ingresos periódicos — "
                    "solo aplicaría si vendés con ganancia (ver nota abajo).")
 
+    gc_tasa = imp.get("gc_tasa")
     st.markdown("**3️⃣ Ganancia de capital al vender (distinto de los dividendos)**")
     gc1, gc2 = st.columns([1, 2])
     with gc1:
         st.metric("IRPF sobre la ganancia de capital",
-                  "No definido" if imp["gc_tasa"] is None else pct(imp["gc_tasa"]))
+                  "No definido" if gc_tasa is None else pct(gc_tasa))
     with gc2:
-        st.caption(imp["gc_nota"])
-    if imp["gc_tasa"]:
+        st.caption(imp.get("gc_nota", "—"))
+    if gc_tasa:
         st.caption(
             f"Ejemplo: si comprás a \\$1.000 y vendés a \\$1.500 (ganancia de "
-            f"\\$500), en Uruguay pagarías \\${500*imp['gc_tasa']:,.0f} de "
-            f"IRPF sobre esa ganancia (el {pct(imp['gc_tasa'])} completo, sin "
+            f"\\$500), en Uruguay pagarías \\${500*gc_tasa:,.0f} de "
+            f"IRPF sobre esa ganancia (el {pct(gc_tasa)} completo, sin "
             "descuento por lo retenido en origen, porque en origen no te "
             "retuvieron nada sobre esta ganancia)."
         )
@@ -809,7 +810,7 @@ with tab_cartera:
                     t, ficha_pos["categoria"] if ficha_pos else None,
                     info_pos["tipo"])
                 bruto = div_unit * pos["cantidad"]
-                carga = imp_pos["carga_total"]
+                carga = imp_pos.get("carga_total")
                 neto = bruto * (1 - (carga or 0))
                 filas_div.append({"Ticker": t, "Bruto anual (US$)": bruto,
                                   "Neto estimado anual (US$)": neto})
@@ -861,7 +862,7 @@ with tab_cartera:
                     imp_pos = impuestos.resumen(
                         t, ficha_pos["categoria"] if ficha_pos else None,
                         info_pos["tipo"])
-                    tasa_gc = imp_pos["gc_tasa"]
+                    tasa_gc = imp_pos.get("gc_tasa")
                     if not tasa_gc:
                         continue
                     filas_gc.append({
